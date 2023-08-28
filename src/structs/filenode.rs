@@ -16,8 +16,8 @@ use super::filechunkreference::FileChunkReference;
 #[derive(PackedStruct)]
 #[packed_struct(endian="msb", bit_numbering="lsb0", size_bytes="4")]
 pub struct FileNodeHeader {
-    #[packed_field(bits="0:9", ty="enum")]
-    id: EnumCatchAll<FileType>,
+    #[packed_field(bits="0:9")]
+    id: Integer<u16, packed_bits::Bits::<10>>,
     #[packed_field(bits="10:22")]
     size: Integer<u16, packed_bits::Bits::<13>>,
     #[packed_field(bits="23:24", ty="enum")]
@@ -117,11 +117,48 @@ impl FileNode {
         let header = FileNodeHeader::unpack(&header_buffer).unwrap();
 
         // Parse file type from file node id field
-        let file_type: FileType;
-        match header.id {
-            Enum(e) => file_type = e,
-            CatchAll(_) => return Err(Error::new(ErrorKind::InvalidData, "Invalid FileNodeHeader id field"))
-        }
+        let file_type: FileType = match header.id.into() {
+            0x04 => FileType::ObjectSpaceManifestRoot,
+            0x08 => FileType::ObjectSpaceManifestListReference,
+            0x0C => FileType::ObjectSpaceManifestListStart,
+            0x10 => FileType::RevisionManifestListReference,
+            0x14 => FileType::RevisionManifestListStart,
+            0x1B => FileType::RevisionManifestStart4,
+            0x1C => FileType::RevisionManifestEnd,
+            0x1E => FileType::RevisionManifestStart6,
+            0x1F => FileType::RevisionManifestStart7,
+            0x21 => FileType::GlobalIdTableStart,
+            0x22 => FileType::GlobalIdTableStart2,
+            0x24 => FileType::GlobalIdTableEntry,
+            0x25 => FileType::GlobalIdTableEntry2,
+            0x26 => FileType::GlobalIdTableEntry3,
+            0x28 => FileType::GlobalIdTableEnd,
+            0x2D => FileType::ObjectDeclarationWithRefCount,
+            0x2E => FileType::ObjectDeclarationWithRefCount2,
+            0x41 => FileType::ObjectRevisionWithRefCount,
+            0x42 => FileType::ObjectRevisionWithRefCount2,
+            0x59 => FileType::RootObjectReference2,
+            0x5A => FileType::RootObjectReference3,
+            0x5C => FileType::RevisionRoleDeclaration,
+            0x5D => FileType::RevisionRoleAndContextDeclaration,
+            0x72 => FileType::ObjectDeclarationFileData3RefCount,
+            0x73 => FileType::ObjectDeclarationFileData3LargeRefCount,
+            0x7C => FileType::ObjectDataEncryptionKeyV2,
+            0x84 => FileType::ObjectInfoDependencyOverrides,
+            0x8C => FileType::DataSignatureGroupDefinition,
+            0x90 => FileType::FileDataStoreListReference,
+            0x94 => FileType::FileDataStoreObjectReference,
+            0xA4 => FileType::ObjectDeclaration2RefCount,
+            0xA5 => FileType::ObjectDeclaration2LargeRefCount,
+            0xB0 => FileType::ObjectGroupListReference,
+            0xB4 => FileType::ObjectGroupStart,
+            0xB8 => FileType::ObjectGroupEnd,
+            0xC2 => FileType::HashedChunkDescriptor2,
+            0xC4 => FileType::ReadOnlyObjectDeclaration2RefCount,
+            0xC5 => FileType::ReadOnlyObjectDeclaration2LargeRefCount,
+            0xFF => FileType::ChunkTerminator,
+            _ => return Err(Error::new(ErrorKind::InvalidData, "Invalid file node id field on file node"))
+        };
 
         let base_type: BaseType;
         let fcr_start: u64;
